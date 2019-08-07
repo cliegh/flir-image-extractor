@@ -19,6 +19,12 @@ It also needs the Python packages *numpy* and *matplotlib* (the latter only if u
 # sudo pip install numpy matplotlib
 ```
 
+```windows 10
+https://www.sno.phy.queensu.ca/~phil/exiftool/install.html
+download 'exiftool-11.60.zip'
+pip install pillow numpy matplotlib
+```
+
 ## Usage
 
 This module can be used by importing it:
