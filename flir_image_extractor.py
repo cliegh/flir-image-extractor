@@ -250,7 +250,7 @@ class FlirImageExtractor:
             img_visual.save(image_filename)
         if 'thermal' in options:
             img_thermal.save(thermal_filename)
-        if 'binary' in options:
+        if 'gray' in options:
             img_gray.save(grayscale_filename)
 
     def export_thermal_to_csv(self, csv_filename):
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--plot', help='Generate a plot using matplotlib', required=False, action='store_true')
     parser.add_argument('-exif', '--exiftool', type=str, help='Custom path to exiftool', required=False,
                         default='exiftool')
-    parser.add_argument('-c', '--color', help='[rgb|thermal|binary] selec output color option', default='rgb|thermal')
+    parser.add_argument('-c', '--color', help='[rgb|thermal|gray] selec output color option', default='rgb|thermal')
     parser.add_argument('-csv', '--extractcsv', help='Export the thermal data per pixel encoded as csv file',
                         required=False)
     parser.add_argument('-d', '--debug', help='Set the debug flag', required=False,
