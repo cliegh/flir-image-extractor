@@ -28,6 +28,7 @@ class FlirImageExtractor:
         self.image_suffix = "_rgb_image.jpg"
         self.thumbnail_suffix = "_rgb_thumb.jpg"
         self.thermal_suffix = "_thermal.png"
+        self.grayscale_suffix = "_grayscale.png"
         self.default_distance = 1.0
 
         # valid for PNG thermal images
@@ -36,7 +37,7 @@ class FlirImageExtractor:
 
         self.rgb_image_np = None
         self.thermal_image_np = None
-
+        self.normalized_image_np = None
     pass
 
     def process_image(self, flir_img_filename):
@@ -61,6 +62,7 @@ class FlirImageExtractor:
 
         self.rgb_image_np = self.extract_embedded_image()
         self.thermal_image_np = self.extract_thermal_image()
+        self.normalized_image_np = (self.thermal_image_np - np.amin(self.thermal_image_np)) / (np.amax(self.thermal_image_np) - np.amin(self.thermal_image_np))
 
     def get_image_type(self):
         """
@@ -217,30 +219,39 @@ class FlirImageExtractor:
         plt.imshow(rgb_np)
         plt.show()
 
-    def save_images(self):
+    def save_images(self, options):
         """
         Save the extracted images
         :return:
         """
-        rgb_np = self.get_rgb_np()
-        thermal_np = self.extract_thermal_image()
+        options = options.split('|')
+
+        rgb_np = self.rgb_image_np
+        thermal_np = self.thermal_image_np
 
         img_visual = Image.fromarray(rgb_np)
         thermal_normalized = (thermal_np - np.amin(thermal_np)) / (np.amax(thermal_np) - np.amin(thermal_np))
         img_thermal = Image.fromarray(np.uint8(cm.inferno(thermal_normalized) * 255))
+        img_gray = Image.fromarray(np.uint8(cm.binary(thermal_normalized) * 255))
 
         fn_prefix, _ = os.path.splitext(self.flir_img_filename)
         thermal_filename = fn_prefix + self.thermal_suffix
         image_filename = fn_prefix + self.image_suffix
+        grayscale_filename = fn_prefix + self.grayscale_suffix
+
         if self.use_thumbnail:
             image_filename = fn_prefix + self.thumbnail_suffix
 
         if self.is_debug:
             print("DEBUG Saving RGB image to:{}".format(image_filename))
             print("DEBUG Saving Thermal image to:{}".format(thermal_filename))
-
-        img_visual.save(image_filename)
-        img_thermal.save(thermal_filename)
+            print("DEBUG Saving Gray image to:{}".format(grayscale_filename))
+        if 'rgb' in options:
+            img_visual.save(image_filename)
+        if 'thermal' in options:
+            img_thermal.save(thermal_filename)
+        if 'binary' in options:
+            img_gray.save(grayscale_filename)
 
     def export_thermal_to_csv(self, csv_filename):
         """
@@ -250,15 +261,23 @@ class FlirImageExtractor:
 
         with open(csv_filename, 'w') as fh:
             writer = csv.writer(fh, delimiter=',')
-            writer.writerow(['x', 'y', 'temp (c)'])
+            writer.writerows(self.thermal_image_np)
+        if args.normalize:
+            with open('normalized_'+csv_filename, 'w') as nfh:
+                writer = csv.writer(nfh, delimiter=',')
+                writer.writerows(self.normalized_image_np)
+            
+    def load_thermal_data(self):
+        """
+        return thermal data array
+        """
+        pixel_values = []
+        for e in np.ndenumerate(self.thermal_image_np):
+            x, y = e[0]
+            c = e[1]
+            pixel_values.append([x,y,c])
 
-            pixel_values = []
-            for e in np.ndenumerate(self.thermal_image_np):
-                x, y = e[0]
-                c = e[1]
-                pixel_values.append([x, y, c])
-
-            writer.writerows(pixel_values)
+        return pixel_values
 
 
 if __name__ == '__main__':
@@ -267,10 +286,12 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--plot', help='Generate a plot using matplotlib', required=False, action='store_true')
     parser.add_argument('-exif', '--exiftool', type=str, help='Custom path to exiftool', required=False,
                         default='exiftool')
+    parser.add_argument('-c', '--color', help='[rgb|thermal|binary] selec output color option', default='rgb|thermal')
     parser.add_argument('-csv', '--extractcsv', help='Export the thermal data per pixel encoded as csv file',
                         required=False)
     parser.add_argument('-d', '--debug', help='Set the debug flag', required=False,
                         action='store_true')
+    parser.add_argument('-n', '--normalize', help='save normalized data', required=False, action='store_true')
     args = parser.parse_args()
 
     fie = FlirImageExtractor(exiftool_path=args.exiftool, is_debug=args.debug)
@@ -282,4 +303,4 @@ if __name__ == '__main__':
     if args.extractcsv:
         fie.export_thermal_to_csv(args.extractcsv)
 
-    fie.save_images()
+    fie.save_images(args.color)
