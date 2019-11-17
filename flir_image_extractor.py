@@ -15,6 +15,7 @@ from PIL import Image
 from math import sqrt, exp, log
 from matplotlib import cm
 from matplotlib import pyplot as plt
+from collections import OrderedDict
 
 import numpy as np
 
@@ -253,20 +254,63 @@ class FlirImageExtractor:
         if 'gray' in options:
             img_gray.save(grayscale_filename)
 
-    def export_thermal_to_csv(self, csv_filename):
+    def export_thermal_to_csv(self):
         """
         Convert thermal data in numpy to json
         :return:
         """
 
+        fn_prefix, _ = os.path.splitext(self.flir_img_filename)
+        csv_filename = fn_prefix + '.csv'
+
         with open(csv_filename, 'w') as fh:
             writer = csv.writer(fh, delimiter=',')
-            writer.writerows(self.thermal_image_np)
+            # writer.writerows(self.thermal_image_np)
+            thermal_data = np.copy(self.thermal_image_np)
+            for row in thermal_data:
+                row = [round(pixel, 2) for pixel in row]
+                writer.writerow(row)
+
         if args.normalize:
             with open('normalized_'+csv_filename, 'w') as nfh:
                 writer = csv.writer(nfh, delimiter=',')
                 writer.writerows(self.normalized_image_np)
+
+    def export_thermal_to_json(self):
+        """
+        write to json
+        """
+        fn_prefix, fn_ext = os.path.splitext(self.flir_img_filename)
+        json_filename = fn_prefix + '.json'
+
+        thermal_data = self.thermal_image_np
+
+        tempRow = []
+        for row in thermal_data:
+            temp = []
+            for celsius in row:
+                temp.append(round(celsius, 2))
+            tempRow.append(temp)
+        
+        with open(json_filename, 'w') as json_file:
+            json_data = OrderedDict()
+            json_data['eventId'] = os.path.abspath(fn_prefix+fn_ext)
+            json_data['processingTime'] = '2019-10-16T14:58:36.998586+09:00'
+            json_data['processingLabTime'] = '00:00:00.3757957'
+            json_data['processingStatus'] = '0'
+            json_data['tempData'] = tempRow
+
+            # json_file.write(out)
+            # json.dump(json_data, json_file)
+            out = json.dumps(json_data, indent=4)
+            json_file.write(out)
             
+
+
+        if args.normalize:
+            print("warning : json normalization is not implemented >_<")
+            pass
+
     def load_thermal_data(self):
         """
         return thermal data array
@@ -288,10 +332,11 @@ if __name__ == '__main__':
                         default='exiftool')
     parser.add_argument('-c', '--color', help='[rgb|thermal|gray] selec output color option', default='rgb|thermal')
     parser.add_argument('-csv', '--extractcsv', help='Export the thermal data per pixel encoded as csv file',
-                        required=False)
+                        required=False, action='store_true')
     parser.add_argument('-d', '--debug', help='Set the debug flag', required=False,
                         action='store_true')
     parser.add_argument('-n', '--normalize', help='save normalized data', required=False, action='store_true')
+    parser.add_argument('-json', '--extractjson', help='extract thermal data to json', required=False ,action='store_true')
     args = parser.parse_args()
 
     fie = FlirImageExtractor(exiftool_path=args.exiftool, is_debug=args.debug)
@@ -301,6 +346,11 @@ if __name__ == '__main__':
         fie.plot()
 
     if args.extractcsv:
-        fie.export_thermal_to_csv(args.extractcsv)
+        print(args.extractcsv)
+        fie.export_thermal_to_csv()
+
+    if args.extractjson:
+        print(args.extractjson)
+        fie.export_thermal_to_json()
 
     fie.save_images(args.color)
