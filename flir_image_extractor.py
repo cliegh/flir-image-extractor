@@ -330,7 +330,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--plot', help='Generate a plot using matplotlib', required=False, action='store_true')
     parser.add_argument('-exif', '--exiftool', type=str, help='Custom path to exiftool', required=False,
                         default='exiftool')
-    parser.add_argument('-c', '--color', help='[rgb|thermal|gray] selec output color option', default='rgb|thermal')
+    parser.add_argument('-c', '--color', help='[rgb|thermal|gray] selec output color option')
     parser.add_argument('-csv', '--extractcsv', help='Export the thermal data per pixel encoded as csv file',
                         required=False, action='store_true')
     parser.add_argument('-d', '--debug', help='Set the debug flag', required=False,
@@ -353,4 +353,5 @@ if __name__ == '__main__':
         print(args.extractjson)
         fie.export_thermal_to_json()
 
-    fie.save_images(args.color)
+    if args.color:
+        fie.save_images(args.color)
